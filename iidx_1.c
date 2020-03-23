@@ -2,6 +2,7 @@
 
 #include <string.h>
 
+#define BINARY_STREAM_DEFINITIONS
 #include "binary_stream.h"
 
 #define CHART_END_SIGNATURE 0x7fffffff

@@ -13,7 +13,7 @@ include_directories(external)
 add_subdirectory(external/mxml EXCLUDE_FROM_ALL)
 
 # sources
-set(SOURCE_FILES ${SOURCE_FILES} iidx_note_count.c ifs.c iidx_1.c kbinxml.c binary_stream.c)
+set(SOURCE_FILES ${SOURCE_FILES} iidx_note_count.c ifs.c iidx_1.c kbinxml.c)
 
 # iidx_notes.lib
 add_library(iidx_notes STATIC ${SOURCE_FILES})
