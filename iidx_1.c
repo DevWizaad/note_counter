@@ -1,8 +1,10 @@
 #include "iidx_1.h"
 
+#include <string.h>
+
 #include "binary_stream.h"
 
-static const uint32_t CHART_END_SIGNATURE = 0x7fffffff;
+#define CHART_END_SIGNATURE 0x7fffffff
 
 typedef struct
 {
@@ -34,14 +36,11 @@ static int get_note_count(uint8_t *chart, uint32_t length)
     if (event_offset == CHART_END_SIGNATURE)
       break;
 
-    // check if it's a note.
+    // check if it's a note. (0x00 == 1p note, 0x01 == 2p note)
     if (event_type == 0x00 || event_type == 0x01)
     {
-      ++note_count;
-
       // check if it's a charge note.
-      if (event_value > 0)
-        ++note_count;
+      note_count += event_value > 0 ? 2 : 1;
     }
   }
 
@@ -55,21 +54,23 @@ int iidx_1_get_note_counts(uint8_t *file, uint32_t file_length, iidx_1_note_coun
     return -1;
 
   // read file header.
-  iidx_1_header *header = (iidx_1_header*) file;
+  iidx_1_header header;
+  memcpy(&header, file, sizeof(header));
+  iidx_1_note_counts note_counts;
   for (int i = 0; i < IIDX_1_MAX_CHART_COUNT; ++i)
   {
     // get note counts for all charts.
-    int note_count = get_note_count(file + header->charts[i].offset, header->charts[i].length);
-    out_note_counts->charts[i] = note_count;
+    note_counts.charts[i] = get_note_count(file + header.charts[i].offset, header.charts[i].length);
   }
 
+  *out_note_counts = note_counts;
   return 0;
 }
 
 int iidx_1_get_note_count(uint8_t *file, uint32_t file_length, iidx_1_chart chart)
 {
   if (file == NULL || file_length < sizeof(iidx_1_header) || (uint32_t) chart >= IIDX_1_MAX_CHART_COUNT)
-    return 0;
+    return -1;
   
   iidx_1_header *header = (iidx_1_header*) file;
   return get_note_count(file + header->charts[chart].offset, header->charts[chart].length);
