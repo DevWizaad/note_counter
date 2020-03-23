@@ -130,6 +130,18 @@ uint64_t bs_read_u64(binary_stream *bs)
   return bs->endian == BIG_ENDIAN ? byte_swap64(ret) : ret;
 }
 
+float bs_read_f32(binary_stream *bs)
+{
+  uint32_t val = bs_read_u32(bs);
+  return *(float*) &val;
+}
+
+double bs_read_f64(binary_stream *bs)
+{
+  uint64_t val = bs_read_u64(bs);
+  return *(double*) &val;
+}
+
 uint32_t bs_read_bytes(binary_stream *bs, void *out, uint32_t size)
 {
   assert(bs);

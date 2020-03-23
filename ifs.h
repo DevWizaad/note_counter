@@ -23,7 +23,7 @@ typedef enum
   IFS_MANIFEST_PARSE_ERROR = 5,
 } ifs_error;
 
-ifs_error ifs_extract(const char *path, mxml_node_t **out_manifest, uint32_t *out_manifest_end);
+ifs_error ifs_extract_manifest(const char *path, mxml_node_t **out_manifest, uint32_t *out_manifest_end);
 
 #ifdef __cplusplus
 }

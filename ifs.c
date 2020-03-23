@@ -17,7 +17,7 @@ typedef struct
   uint32_t manifest_end;
 } ifs_header;
 
-ifs_error ifs_extract(const char *path, mxml_node_t **out_manifest, uint32_t *out_manifest_end)
+ifs_error ifs_extract_manifest(const char *path, mxml_node_t **out_manifest, uint32_t *out_manifest_end)
 {
   if (path == NULL || out_manifest == NULL || out_manifest_end == NULL)
     return IFS_INVALID_PARAM;

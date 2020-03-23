@@ -273,7 +273,7 @@ char *read_and_format_data(binary_stream *data_bs, xml_format *format, uint32_t 
     // float.
     char *cur = ret;
     while (total_count--)
-      cur += sprintf(cur, "%.6f ", bs_read_u32(data_bs));
+      cur += sprintf(cur, "%.6f ", bs_read_f32(data_bs));
     *(cur - 1) = 0;
   }
   else if (format->type == 'd')
@@ -281,7 +281,7 @@ char *read_and_format_data(binary_stream *data_bs, xml_format *format, uint32_t 
     // double.
     char *cur = ret;
     while (total_count--)
-      cur += sprintf(cur, "%.6f ", bs_read_u64(data_bs));
+      cur += sprintf(cur, "%.6f ", bs_read_f64(data_bs));
     *(cur - 1) = 0;
   }
   else if (format->type == 'P')

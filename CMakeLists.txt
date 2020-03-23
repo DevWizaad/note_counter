@@ -1,8 +1,12 @@
 cmake_minimum_required(VERSION 3.0.0)
 project(iidx_notes VERSION 1.0.1)
 
+# disable warnings about using non _s variants like strncpy
+if (MSVC)
+  add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
+endif()
+
 # add include folders
-#include_directories()
 include_directories(external)
 
 # external libraries

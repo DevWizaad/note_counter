@@ -12,6 +12,8 @@
     "iidx_note_count.h": "c",
     "ifs.h": "c",
     "stdio.h": "c",
-    "corecrt.h": "c"
+    "corecrt.h": "c",
+    "mxml-private.h": "c",
+    "config.h": "c"
   }
 }

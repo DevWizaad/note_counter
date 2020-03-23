@@ -37,6 +37,8 @@ uint8_t bs_read_u8(binary_stream *bs);
 uint16_t bs_read_u16(binary_stream *bs);
 uint32_t bs_read_u32(binary_stream *bs);
 uint64_t bs_read_u64(binary_stream *bs);
+float bs_read_f32(binary_stream *bs);
+double bs_read_f64(binary_stream *bs);
 uint32_t bs_read_bytes(binary_stream *bs, void *out, uint32_t size); // returns the number of bytes read.
 
 // alignment.

@@ -31,7 +31,7 @@ static int load_iidx_1(const char *music_id, uint8_t **out_file_buffer, int *out
 
     mxml_node_t *manifest = NULL;
     uint32_t manifest_end = 0;
-    ifs_error e = ifs_extract(filename, &manifest, &manifest_end);
+    ifs_error e = ifs_extract_manifest(filename, &manifest, &manifest_end);
     if (e != IFS_NO_ERROR)
       return e;
 
