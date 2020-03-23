@@ -60,7 +60,7 @@ static int load_iidx_1(const char *music_id, uint8_t **out_file_buffer, int *out
   return 0;
 }
 
-int read_chart(const char *music_id, iidx_1_chart chart)
+int get_chart_note_count(const char *music_id, iidx_1_chart chart)
 {
   if (music_id == NULL || (uint32_t)chart >= IIDX_1_MAX_CHART_COUNT)
     return -1;
@@ -78,7 +78,7 @@ int read_chart(const char *music_id, iidx_1_chart chart)
   return ret;
 }
 
-int read_charts(const char *music_id, iidx_1_note_counts *out_note_counts)
+int get_music_note_counts(const char *music_id, iidx_1_note_counts *out_note_counts)
 {
   if (music_id == NULL || out_note_counts == NULL)
     return -1;

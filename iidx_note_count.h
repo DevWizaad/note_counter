@@ -7,8 +7,8 @@ extern "C" {
 
 #include "iidx_1.h"
 
-int read_chart(const char *music_id, iidx_1_chart chart);
-int read_charts(const char *music_id, iidx_1_note_counts *out_note_counts);
+int get_chart_note_count(const char *music_id, iidx_1_chart chart);
+int get_music_note_counts(const char *music_id, iidx_1_note_counts *out_note_counts);
 
 #ifdef __cplusplus
 }
