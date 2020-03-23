@@ -2,9 +2,10 @@
 
 #include "binary_stream.h"
 
-static const uint8_t SIGNATURE = 0xA0;
-static const uint8_t SIG_COMPRESSED = 0x42;
-static const uint8_t SIG_UNCOMPRESSED = 0x45;
+#define SIGNATURE 0xA0
+#define SIG_COMPRESSED 0x42
+#define SIG_UNCOMPRESSED 0x45
+#define XML_TYPE_ARRAY_BIT 0x40
 
 typedef struct
 {
@@ -89,18 +90,23 @@ typedef struct
   uint8_t compressed;
   uint8_t encoding_key;
   uint8_t not_encoding_key; // ~encoding_key
-  uint32_t node_length; // length of the first node
+  uint32_t section_length; // length of the entire section
 } kbinxml_header;
 
-static char sixbit_charmap[] = "0123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz";
+#define SIX_BITS 0x3f
+static const char SIXBIT_CHARMAP[] = "0123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz";
 
 static char *unpack_sixbit(binary_stream *stream)
 {
+  // get the number of sixbit encoded characters.
   uint32_t length = bs_read_u8(stream);
   
+  // allocate an array for the decoded characters.
   char *ret = (char*) calloc(length + 1, sizeof(char));
   char *ret_ptr = ret;
 
+  // read in 24 bits at a time, matching up to exactly 4 encoded chars.
+  // this is done to remove worrying about bit offsets between loop iterations.
   uint32_t bits;
   for (uint32_t chars_read = 0; chars_read < length; chars_read += 4)
   {
@@ -112,10 +118,10 @@ static char *unpack_sixbit(binary_stream *stream)
       bits |= (bs_read_u8(stream) << 8);
       bits |= bs_read_u8(stream);
 
-      *(ret_ptr++) = sixbit_charmap[bits >> 18];
-      *(ret_ptr++) = sixbit_charmap[(bits >> 12) & 0x3f];
-      *(ret_ptr++) = sixbit_charmap[(bits >> 6) & 0x3f];
-      *(ret_ptr++) = sixbit_charmap[bits & 0x3f];
+      *(ret_ptr++) = SIXBIT_CHARMAP[bits >> 18];
+      *(ret_ptr++) = SIXBIT_CHARMAP[(bits >> 12) & SIX_BITS];
+      *(ret_ptr++) = SIXBIT_CHARMAP[(bits >> 6) & SIX_BITS];
+      *(ret_ptr++) = SIXBIT_CHARMAP[bits & SIX_BITS];
     }
     else if (length - chars_read == 3)
     {
@@ -123,32 +129,37 @@ static char *unpack_sixbit(binary_stream *stream)
       bits |= (bs_read_u8(stream) << 8);
       bits |= bs_read_u8(stream);
 
-      *(ret_ptr++) = sixbit_charmap[bits >> 18];
-      *(ret_ptr++) = sixbit_charmap[(bits >> 12) & 0x3f];
-      *(ret_ptr++) = sixbit_charmap[(bits >> 6) & 0x3f];
+      *(ret_ptr++) = SIXBIT_CHARMAP[bits >> 18];
+      *(ret_ptr++) = SIXBIT_CHARMAP[(bits >> 12) & SIX_BITS];
+      *(ret_ptr++) = SIXBIT_CHARMAP[(bits >> 6) & SIX_BITS];
     }
     else if (length - chars_read == 2)
     {
       bits |= (bs_read_u8(stream) << 16);
       bits |= (bs_read_u8(stream) << 8);
 
-      *(ret_ptr++) = sixbit_charmap[bits >> 18];
-      *(ret_ptr++) = sixbit_charmap[(bits >> 12) & 0x3f];
+      *(ret_ptr++) = SIXBIT_CHARMAP[bits >> 18];
+      *(ret_ptr++) = SIXBIT_CHARMAP[(bits >> 12) & SIX_BITS];
     }
     else
     {
       bits |= (bs_read_u8(stream) << 16);
 
-      *(ret_ptr++) = sixbit_charmap[bits >> 18];
+      *(ret_ptr++) = SIXBIT_CHARMAP[bits >> 18];
     }
   }
 
   return ret;
 }
 
-char *read_and_format_data(binary_stream *data_bs, xml_format *format, uint32_t total_count)
+static char *read_and_format_data(binary_stream *data_bs, const xml_format *format, uint32_t total_count)
 {
+  // try to calculate a text buffer size.
   uint32_t char_per_element = 1;
+
+  // binary type gets serialized as hex, so 2 chars per byte.
+  if (format == &xml_formats[XML_TYPE_BINARY])
+    char_per_element = 2;
 
   if (format->count > 0)
   {
@@ -186,12 +197,11 @@ char *read_and_format_data(binary_stream *data_bs, xml_format *format, uint32_t 
         break;
     }
   }
-  if (format == &xml_formats[XML_TYPE_BINARY])
-    char_per_element = 2;
 
   // allocate our text buffer.  
   char *ret = (char*) calloc(char_per_element * total_count + 1, sizeof(char));
 
+  // figure out how to format it.
   if (format == &xml_formats[XML_TYPE_STRING])
   {
     // string.
@@ -310,21 +320,22 @@ mxml_node_t *kbinxml_from_binary(uint8_t *binary, uint32_t binary_length)
   header.compressed = bs_read_u8(bs);
   header.encoding_key = bs_read_u8(bs);
   header.not_encoding_key = bs_read_u8(bs);
-  header.node_length = bs_read_u32(bs);
+  header.section_length = bs_read_u32(bs);
 
-  // open a binary stream after the node.
+  // open another binary stream at the data section after the node.
   binary_stream *data_bs = bs_duplicate(bs);
-  bs_set_offset(data_bs, header.node_length + sizeof(kbinxml_header));
+  bs_set_offset(data_bs, header.section_length + sizeof(kbinxml_header));
   uint32_t data_size = bs_read_u32(data_bs);
 
   // verify the header is valid.
   if (header.signature == SIGNATURE &&
       (header.compressed == SIG_COMPRESSED || header.compressed == SIG_UNCOMPRESSED) &&
-      binary_length >= header.node_length + sizeof(kbinxml_header))
+      (header.encoding_key ^ header.not_encoding_key) == 0xff &&
+      binary_length >= header.section_length + sizeof(kbinxml_header))
   {
-    mxml_node_t *node = mxmlNewXML("1.0");
-    ret = node;
-    int compressed = header.compressed == SIG_COMPRESSED;
+    ret = mxmlNewXML("1.0");
+    mxml_node_t *node = ret;
+    int compressed = (header.compressed == SIG_COMPRESSED);
 
     int done = 0;
     while (!done && node != NULL)
@@ -333,97 +344,100 @@ mxml_node_t *kbinxml_from_binary(uint8_t *binary, uint32_t binary_length)
       while (bs_peek_u8(bs) == 0)
         bs_read_u8(bs);
 
-      // read node_type.
-      uint8_t node_type = bs_read_u8(bs);
-      int is_array = node_type & 0x40;
-      node_type &= ~0x40;
+      // read the node's xml_type.
+      uint8_t xml_type = bs_read_u8(bs);
+      int is_array = xml_type & XML_TYPE_ARRAY_BIT;
+      xml_type &= ~XML_TYPE_ARRAY_BIT;
 
-      // go back to parent on end node.
-      if (node_type == XML_TYPE_NODE_END)
+      // check for extra special xml types.
+      if (xml_type == XML_TYPE_NODE_END)
       {
+        // node's over, go back to parent.
         node = mxmlGetParent(node);
         continue;
       }
-      else if (node_type == XML_TYPE_END_SECTION)
+      else if (xml_type == XML_TYPE_END_SECTION)
       {
+        // section's over, we're done.
         done = 1;
         continue;
       }
 
-      // get the node_format.
-      xml_format *node_format = NULL;
-      if (node_type < sizeof(xml_formats) / sizeof(*xml_formats))
-        node_format = &xml_formats[node_type];
-
+      // xml_type MUST be within our known range now.
+      if (xml_type >= sizeof(xml_formats) / sizeof(*xml_formats))
+      {
+        mxmlDelete(ret);
+        ret = NULL;
+        goto end;
+      }
+      xml_format *node_format = &xml_formats[xml_type];
+      
       // read the node name.
       char *name = NULL;
       if (compressed)
         name = unpack_sixbit(bs);
       else
       {
-        uint8_t length = (bs_read_u8(bs) & ~64) + 1;
+        uint8_t length = (bs_read_u8(bs) & ~0x40);
         name = (char*) calloc(length + 1, sizeof(char));
         bs_read_bytes(bs, name, length);
       }
 
-      // handle special node types.
-      if (node_type == XML_TYPE_ATTR)
+      // handle attribute types.
+      if (xml_type == XML_TYPE_ATTR)
       {
         // read the attribute data.
-        uint32_t size = bs_read_u32(bs);
-        char *attr_value = (char*) calloc(size + 1, sizeof(char));
-        bs_read_bytes(bs, attr_value, size);
+        uint32_t length = bs_read_u32(bs);
+        char *attr_value = (char*) calloc(length + 1, sizeof(char));
+        bs_read_bytes(bs, attr_value, length);
         bs_realign32(bs);
         mxmlElementSetAttr(node, name, attr_value);
         free(attr_value);
         free(name);
-        continue;
       }
-      else if (node_format == NULL)
+      else
       {
-        // TODO (rourke): raise (hell) an error.
-        continue;
-      }
-      
-      // make a new element.
-      node = mxmlNewElement(node, name);
-      free(name);
-      if (node_type == XML_TYPE_NODE_START)
-        continue;
+        // make a new element.
+        node = mxmlNewElement(node, name);
+        free(name);
+        name = NULL;
+        if (xml_type == XML_TYPE_NODE_START)
+          continue;
 
-      // set node's type attribute.
-      mxmlElementSetAttr(node, "__type", node_format->name);
+        // set the node's type attribute.
+        mxmlElementSetAttr(node, "__type", node_format->name);
 
-      // get the total value count.
-      uint32_t var_count = node_format->count;
-      uint32_t array_count = 1;
-      if (var_count == -1)
-      {
-        var_count = bs_read_u32(data_bs);
-        is_array = 1;
-      }
-      else if (is_array)
-      {
-        array_count = bs_read_u32(data_bs);
-        char num_buffer[16];
-        sprintf(num_buffer, "%d", array_count);
-        mxmlElementSetAttr(node, "__count", num_buffer);
-      }
-      uint32_t total_count = var_count * array_count;
+        // get the total number of elements for the node's text.
+        uint32_t var_count = node_format->count == -1 ? bs_read_u32(data_bs) : node_format->count;
+        uint32_t array_count = is_array ? bs_read_u32(data_bs) : 1;
+        uint32_t total_count = var_count * array_count;
 
-      char *data = read_and_format_data(data_bs, node_format, total_count);
-      mxmlNewText(node, 0, data);
-      free(data);
-      
-      if (node_type == XML_TYPE_BINARY)
-      {
-        char num_buffer[16];
-        sprintf(num_buffer, "%d", total_count);
-        mxmlElementSetAttr(node, "__size", num_buffer);
+        // set the array node's count attribute.
+        if (is_array)
+        {
+          array_count = bs_read_u32(data_bs);
+          char num_buffer[16];
+          sprintf(num_buffer, "%d", array_count);
+          mxmlElementSetAttr(node, "__count", num_buffer);
+        }
+
+        // set the binary node's size attribute.
+        if (xml_type == XML_TYPE_BINARY)
+        {
+          char num_buffer[16];
+          sprintf(num_buffer, "%d", total_count);
+          mxmlElementSetAttr(node, "__size", num_buffer);
+        }
+
+        // format and set the text for the node.
+        char *data = read_and_format_data(data_bs, node_format, total_count);
+        mxmlNewText(node, 0, data);
+        free(data);
       }
     }
   }
 
+end:
   bs_close(data_bs);
   bs_close(bs);
 

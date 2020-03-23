@@ -1,5 +1,5 @@
 /*
-  This is a conversion of kbinxml from Python to C.
+  This is a partial conversion of kbinxml from Python to C.
   View the original source here: https://github.com/mon/kbinxml
  */
 #ifndef KBINXML_H_
