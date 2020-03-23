@@ -53,9 +53,15 @@ ifs_error ifs_extract_manifest(const char *path, mxml_node_t **out_manifest, uin
   if (header.version > 1)
     fread(md5, sizeof(char), sizeof(md5), file);
   
-  // read the manifest.
+  // allocate a buffer for the manifest.
   uint32_t manifest_size = header.manifest_end - ftell(file);
   uint8_t *manifest_buffer = (uint8_t*) malloc(manifest_size);
+  if (manifest_buffer == NULL) {
+    fclose(file);
+    return IFS_MEM_FAILED;
+  }
+
+  // read in the manifest.
   elements_read = fread(manifest_buffer, sizeof(uint8_t), manifest_size, file);
   if (elements_read < manifest_size)
   {
@@ -63,13 +69,15 @@ ifs_error ifs_extract_manifest(const char *path, mxml_node_t **out_manifest, uin
     fclose(file);
     return IFS_INVALID_FILE;
   }
-  mxml_node_t *manifest = kbinxml_from_binary(manifest_buffer, manifest_size);
-  if (manifest == NULL)
-    return IFS_MANIFEST_PARSE_ERROR;
 
-  // cleanup.
+  // convert from binary to xml.
+  mxml_node_t *manifest = kbinxml_from_binary(manifest_buffer, manifest_size);
+
+  // cleanup, check for manifest parse error.
   free(manifest_buffer);
   fclose(file);
+  if (manifest == NULL)
+    return IFS_MANIFEST_PARSE_ERROR;
 
   // set return params.
   *out_manifest = manifest;
