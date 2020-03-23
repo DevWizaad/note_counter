@@ -56,7 +56,8 @@ ifs_error ifs_extract_manifest(const char *path, mxml_node_t **out_manifest, uin
   // allocate a buffer for the manifest.
   uint32_t manifest_size = header.manifest_end - ftell(file);
   uint8_t *manifest_buffer = (uint8_t*) malloc(manifest_size);
-  if (manifest_buffer == NULL) {
+  if (manifest_buffer == NULL)
+  {
     fclose(file);
     return IFS_MEM_FAILED;
   }
