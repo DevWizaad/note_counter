@@ -19,7 +19,9 @@ typedef struct
 static int get_note_count(uint8_t *chart, uint32_t length)
 {
   // validate parameters, length MUST be a multiple of 8.
-  if (chart == NULL || length == 0 || (length & 0x07))
+  if (chart == NULL || (length & 0x07))
+    return -1;
+  if (length == 0)
     return 0;
   
   // open chart for as binary stream.

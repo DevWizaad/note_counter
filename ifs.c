@@ -5,7 +5,7 @@
 #include "binary_stream.h"
 #include "kbinxml.h"
 
-static const uint32_t SIGNATURE = 0x6CAD8F89;
+#define SIGNATURE 0x6CAD8F89
 
 typedef struct
 {
