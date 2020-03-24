@@ -29,6 +29,7 @@ static int load_iidx_1(const char *music_id, uint8_t **out_file_buffer, int *out
     // no extracted folder exists already, have to read the ifs.
     snprintf(filename, sizeof(filename), "data/sound/%s.ifs", music_id);
 
+    // get the manifest of the ifs file.
     mxml_node_t *manifest = NULL;
     uint32_t manifest_end = 0;
     ifs_error e = ifs_extract_manifest(filename, &manifest, &manifest_end);
@@ -48,7 +49,7 @@ static int load_iidx_1(const char *music_id, uint8_t **out_file_buffer, int *out
     // read the iidx_1 file from the ifs.
     file = fopen(filename, "rb");
     if (file == NULL)
-      return 1;
+      return -1;
     file_buffer = (uint8_t*) malloc(file_length);
     fseek(file, iidx_1_offset, SEEK_SET);
     fread(file_buffer, sizeof(uint8_t), file_length, file);
