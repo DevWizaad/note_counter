@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.0)
-project(iidx_notes VERSION 1.1.0)
+project(note_counter VERSION 1.1.0)
 
 # disable warnings about using non _s variants like strncpy
 if (MSVC)
@@ -15,9 +15,9 @@ add_subdirectory(external/mxml EXCLUDE_FROM_ALL)
 # sources
 set(SOURCE_FILES ${SOURCE_FILES} iidx_note_count.c ifs.c iidx_1.c kbinxml.c)
 
-# iidx_notes.lib
-add_library(iidx_notes STATIC ${SOURCE_FILES})
-target_link_libraries(iidx_notes PRIVATE mxml)
+# note_counter.lib
+add_library(note_counter STATIC ${SOURCE_FILES})
+target_link_libraries(note_counter PRIVATE mxml)
 
 # test.exe
 add_executable(test EXCLUDE_FROM_ALL ${SOURCE_FILES} test/main.c)
